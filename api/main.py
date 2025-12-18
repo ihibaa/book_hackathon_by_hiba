@@ -1,3 +1,4 @@
+# backend/main.py
 from datetime import timedelta
 from typing import Annotated
 from dotenv import load_dotenv
@@ -8,9 +9,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 # Internal imports
-from api import auth, database, models, schemas
-# Heavy AI libraries temporarily removed for deploy
-# from api import ai_service  
+from backend import auth, database, models, schemas, ai_service
 
 load_dotenv()
 
@@ -19,8 +18,8 @@ app = FastAPI()
 # Database & CORS
 models.Base.metadata.create_all(bind=database.engine)
 
-origins = ["*"]  # Allow all origins
-
+# If your frontend runs on localhost:3000 keep it, add more origins if needed.
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -29,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- REQUEST MODELS ---
+# --- REQUEST MODELS (kept for convenience; also in schemas) ---
 class TranslationRequest(BaseModel):
     text: str
     target_lang: str = "Urdu"
@@ -72,18 +71,25 @@ def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Sessio
     token = auth.create_access_token(data={"sub": user.email}, expires_delta=timedelta(minutes=30))
     return {"access_token": token, "token_type": "bearer"}
 
-# --- AI ENDPOINTS (commented temporarily to reduce deploy size) ---
-"""
+# --- AI ENDPOINTS ---
 @app.post("/api/translate")
 def translate(request: TranslationRequest):
     return {"translated_text": ai_service.translate_text(request.text, request.target_lang)}
 
 @app.post("/api/chat")
 def chat(request: ChatRequest, user: models.User = Depends(auth.get_current_user)):
+    """
+    Protected chat endpoint.
+    We wrap the ai_service call in try/except so unexpected errors return as HTTP 500
+    and are logged server-side.
+    """
+    print(f"🤖 Chat Question from {user.email}: {request.question}")
     try:
         answer = ai_service.get_chat_response(request.question)
         return {"answer": answer}
     except Exception as e:
+        # log the error server-side, but return a clean response to client
         print("❌ Error in ai_service.get_chat_response:", e)
         raise HTTPException(status_code=500, detail="Internal server error while generating answer")
-"""
+
+
