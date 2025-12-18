@@ -1,4 +1,3 @@
-# api/main.py
 from datetime import timedelta
 from typing import Annotated
 from dotenv import load_dotenv
@@ -9,7 +8,9 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 # Internal imports
-from api import auth, database, models, schemas, ai_service  # folder name changed from backend -> api
+from api import auth, database, models, schemas
+# Heavy AI libraries temporarily removed for deploy
+# from api import ai_service  
 
 load_dotenv()
 
@@ -18,7 +19,7 @@ app = FastAPI()
 # Database & CORS
 models.Base.metadata.create_all(bind=database.engine)
 
-origins = ["*"]  # Allow all origins, change in production
+origins = ["*"]  # Allow all origins
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,7 +72,8 @@ def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Sessio
     token = auth.create_access_token(data={"sub": user.email}, expires_delta=timedelta(minutes=30))
     return {"access_token": token, "token_type": "bearer"}
 
-# --- AI ENDPOINTS ---
+# --- AI ENDPOINTS (commented temporarily to reduce deploy size) ---
+"""
 @app.post("/api/translate")
 def translate(request: TranslationRequest):
     return {"translated_text": ai_service.translate_text(request.text, request.target_lang)}
@@ -84,3 +86,4 @@ def chat(request: ChatRequest, user: models.User = Depends(auth.get_current_user
     except Exception as e:
         print("❌ Error in ai_service.get_chat_response:", e)
         raise HTTPException(status_code=500, detail="Internal server error while generating answer")
+"""
